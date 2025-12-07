@@ -1,4 +1,4 @@
-// Import dependencies
+// server.js
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion } = require("mongodb");
@@ -10,7 +10,6 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // -------------------- MIDDLEWARE --------------------
-// Enable CORS and parse JSON bodies
 app.use(cors());
 app.use(express.json());
 
@@ -23,7 +22,6 @@ if (!serviceAccountBase64) {
 
 let serviceAccount;
 try {
-  // Decode base64 and parse JSON
   serviceAccount = JSON.parse(
     Buffer.from(serviceAccountBase64, "base64").toString("utf-8")
   );
@@ -32,7 +30,6 @@ try {
   process.exit(1);
 }
 
-// Initialize Firebase Admin SDK
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
@@ -48,7 +45,6 @@ const client = new MongoClient(uri, {
   },
 });
 
-// Connect to MongoDB
 async function connectDB() {
   try {
     await client.connect();
@@ -56,7 +52,7 @@ async function connectDB() {
     console.log("MongoDB connected successfully!");
   } catch (error) {
     console.error("MongoDB connection failed:", error);
-    process.exit(1); // Stop server if DB fails
+    process.exit(1);
   }
 }
 
@@ -68,7 +64,6 @@ const db = client.db("scholarStream");
 app.locals.db = db;
 
 // -------------------- AUTH MIDDLEWARE --------------------
-// Verify Firebase token
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader)
@@ -87,13 +82,51 @@ const verifyToken = async (req, res, next) => {
 
 // -------------------- ROUTES --------------------
 
+// Test route
+app.get("/", (req, res) => {
+  res.send("ScholarStream Server is Running");
+});
 
+// -------------------- USER ROUTES --------------------
 
+// Save or Update User (Social Login logic - default role: 'student')
+app.post("/users", async (req, res) => {
+  try {
+    const usersCollection = db.collection("users");
+    const user = req.body;
+    const query = { email: user.email };
+    const existingUser = await usersCollection.findOne(query);
 
+    if (existingUser) {
+      return res.send({ message: "user already exists", insertedId: null });
+    }
 
+    // Set default role for new users
+    const newUser = { ...user, role: user.role || "student" };
+    const result = await usersCollection.insertOne(newUser);
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ message: "Failed to save user", error: err });
+  }
+});
 
+// Get User Role (For client-side dashboard routing protection)
+app.get("/users/role/:email", verifyToken, async (req, res) => {
+  try {
+    const email = req.params.email;
+    if (email !== req.decoded.email) {
+      return res.status(403).send({ message: "forbidden access" });
+    }
 
+    const usersCollection = db.collection("users");
+    const user = await usersCollection.findOne({ email });
+    const role = user?.role || "student"; // default role
 
+    res.send({ role });
+  } catch (err) {
+    res.status(500).send({ message: "Failed to fetch role", error: err });
+  }
+});
 
 
 // -------------------- 404 HANDLER --------------------
@@ -101,7 +134,7 @@ app.use((req, res) => {
   res.status(404).send({ message: "404 Not Found" });
 });
 
-// --------------------  SHUTDOWN --------------------
+// -------------------- SHUTDOWN --------------------
 process.on("SIGINT", async () => {
   await client.close();
   console.log("MongoDB connection closed");
