@@ -13,6 +13,20 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// --- FIREBASE ADMIN INITIALIZATION ---
+const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT;
+if (!serviceAccountBase64) {
+    console.error("FIREBASE_SERVICE_ACCOUNT environment variable is not set.");
+    process.exit(1);
+}
+const serviceAccount = JSON.parse(Buffer.from(serviceAccountBase64, 'base64').toString('utf-8'));
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+console.log("Firebase Admin Initialized successfully!");
+
 app.get('/', (req, res) => {
   res.send('ScholarStream Server Initialized.');
 });
