@@ -441,6 +441,56 @@ app.delete("/reviews/:id", verifyToken, async (req, res) => {
   res.send(result);
 });
 
+// --- ANALYTICS (Admin Dashboard) ---
+app.get("/admin-stats", verifyToken, verifyAdmin, async (req, res) => {
+  const users = await usersCollection.estimatedDocumentCount();
+  const scholarships = await scholarshipsCollection.estimatedDocumentCount();
+  const applications = await applicationsCollection.estimatedDocumentCount();
+
+  // Calculate Total Fees collected from PAID applications
+  const payments = await applicationsCollection
+    .aggregate([
+      { $match: { paymentStatus: "paid" } },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: "$applicationFees" },
+        },
+      },
+    ])
+    .toArray();
+
+  const revenue = payments.length > 0 ? payments[0].totalRevenue : 0;
+
+  res.send({
+    users,
+    scholarships,
+    applications,
+    revenue,
+  });
+});
+
+// Chart Data (Applications per Scholarship Category)
+app.get("/analytics-chart", verifyToken, verifyAdmin, async (req, res) => {
+  const result = await applicationsCollection
+    .aggregate([
+      {
+        $group: {
+          _id: "$scholarshipCategory",
+          count: { $sum: 1 },
+        },
+      },
+    ])
+    .toArray();
+  res.send(result);
+});
+
+
+
+
+
+
+
 
 
 
