@@ -1,4 +1,3 @@
-// -------------------- IMPORTS --------------------
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -103,6 +102,8 @@ app.get("/", (req, res) => {
 });
 
 // -------------------- USER ROUTES --------------------
+
+// Create User
 app.post("/users", async (req, res) => {
   try {
     const user = req.body;
@@ -117,16 +118,55 @@ app.post("/users", async (req, res) => {
   }
 });
 
+// Get User Role
 app.get("/users/role/:email", verifyToken, async (req, res) => {
   try {
     const email = req.params.email;
-    if (email !== req.decoded.email)
-      return res.status(403).send({ message: "Forbidden access" });
+    if (email !== req.decoded.email) return res.status(403).send({ message: "Forbidden access" });
 
     const user = await usersCollection.findOne({ email });
     res.send({ role: user?.role || "student" });
   } catch (err) {
     res.status(500).send({ message: "Failed to fetch role", error: err });
+  }
+});
+
+// -------------------- ADMIN USER MANAGEMENT --------------------
+
+// Get All Users (with optional role filter)
+app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const filter = req.query.role ? { role: req.query.role } : {};
+    const result = await usersCollection.find(filter).toArray();
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ message: "Failed to fetch users", error: err });
+  }
+});
+
+// Update User Role
+app.patch('/users/role/:id', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const role = req.body.role;
+    const filter = { _id: new ObjectId(id) };
+    const updatedDoc = { $set: { role } };
+    const result = await usersCollection.updateOne(filter, updatedDoc);
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ message: "Failed to update user role", error: err });
+  }
+});
+
+// Delete User
+app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id) };
+    const result = await usersCollection.deleteOne(query);
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ message: "Failed to delete user", error: err });
   }
 });
 
@@ -146,7 +186,7 @@ app.post("/scholarship", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// Update Scholarship (Admin)
+// Update Scholarship
 app.patch("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const id = req.params.id;
@@ -154,17 +194,14 @@ app.patch("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
     if (item.applicationFees) item.applicationFees = parseFloat(item.applicationFees);
     if (item.serviceCharge) item.serviceCharge = parseFloat(item.serviceCharge);
 
-    const result = await scholarshipsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: item }
-    );
+    const result = await scholarshipsCollection.updateOne({ _id: new ObjectId(id) }, { $set: item });
     res.send(result);
   } catch (err) {
     res.status(500).send({ message: "Failed to update scholarship", error: err });
   }
 });
 
-// Delete Scholarship (Admin)
+// Delete Scholarship
 app.delete("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const id = req.params.id;
@@ -250,8 +287,6 @@ app.post("/create-payment-intent", verifyToken, async (req, res) => {
 });
 
 // -------------------- APPLICATION ROUTES --------------------
-
-// Save Application (Student)
 app.post("/applications", verifyToken, async (req, res) => {
   try {
     const application = req.body;
@@ -321,8 +356,6 @@ app.delete("/application/:id", verifyToken, async (req, res) => {
 });
 
 // -------------------- REVIEWS ROUTES --------------------
-
-// Add Review
 app.post("/reviews", verifyToken, async (req, res) => {
   const review = req.body;
   review.reviewDate = new Date();
@@ -331,7 +364,6 @@ app.post("/reviews", verifyToken, async (req, res) => {
   res.send(result);
 });
 
-// Edit Review (Student)
 app.patch("/reviews/:id", verifyToken, async (req, res) => {
   const id = req.params.id;
   const { ratingPoint, reviewComment } = req.body;
@@ -341,7 +373,6 @@ app.patch("/reviews/:id", verifyToken, async (req, res) => {
   res.send(result);
 });
 
-// Get Reviews by Scholarship ID
 app.get("/reviews/:scholarshipId", async (req, res) => {
   const id = req.params.scholarshipId;
   const query = { scholarshipId: id };
@@ -349,7 +380,6 @@ app.get("/reviews/:scholarshipId", async (req, res) => {
   res.send(result);
 });
 
-// Get Reviews by User
 app.get("/reviews-by-user/:email", verifyToken, async (req, res) => {
   const email = req.params.email;
   if (email !== req.decoded.email) return res.status(403).send({ message: "Forbidden access" });
@@ -358,14 +388,13 @@ app.get("/reviews-by-user/:email", verifyToken, async (req, res) => {
   res.send(result);
 });
 
-// Delete Review
 app.delete("/reviews/:id", verifyToken, async (req, res) => {
   const id = req.params.id;
   const result = await reviewsCollection.deleteOne({ _id: new ObjectId(id) });
   res.send(result);
 });
 
-// -------------------- ANALYTICS (Admin) --------------------
+// -------------------- ANALYTICS --------------------
 app.get("/admin-stats", verifyToken, verifyAdmin, async (req, res) => {
   const users = await usersCollection.estimatedDocumentCount();
   const scholarships = await scholarshipsCollection.estimatedDocumentCount();
