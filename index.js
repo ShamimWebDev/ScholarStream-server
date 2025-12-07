@@ -64,6 +64,7 @@ const db = client.db("scholarStream");
 app.locals.db = db;
 
 // -------------------- AUTH MIDDLEWARE --------------------
+// Verify Firebase token
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader)
@@ -77,6 +78,35 @@ const verifyToken = async (req, res, next) => {
     next();
   } catch (err) {
     res.status(401).send({ message: "Unauthorized access" });
+  }
+};
+
+// -------------------- ROLE-BASED MIDDLEWARE --------------------
+const verifyAdmin = async (req, res, next) => {
+  try {
+    const email = req.decoded.email;
+    const usersCollection = db.collection("users");
+    const user = await usersCollection.findOne({ email });
+    if (user?.role !== "admin") {
+      return res.status(403).send({ message: "forbidden access" });
+    }
+    next();
+  } catch (err) {
+    res.status(500).send({ message: "Server error", error: err });
+  }
+};
+
+const verifyModerator = async (req, res, next) => {
+  try {
+    const email = req.decoded.email;
+    const usersCollection = db.collection("users");
+    const user = await usersCollection.findOne({ email });
+    if (user?.role !== "moderator" && user?.role !== "admin") {
+      return res.status(403).send({ message: "forbidden access" });
+    }
+    next();
+  } catch (err) {
+    res.status(500).send({ message: "Server error", error: err });
   }
 };
 
@@ -101,7 +131,6 @@ app.post("/users", async (req, res) => {
       return res.send({ message: "user already exists", insertedId: null });
     }
 
-    // Set default role for new users
     const newUser = { ...user, role: user.role || "student" };
     const result = await usersCollection.insertOne(newUser);
     res.send(result);
@@ -120,8 +149,7 @@ app.get("/users/role/:email", verifyToken, async (req, res) => {
 
     const usersCollection = db.collection("users");
     const user = await usersCollection.findOne({ email });
-    const role = user?.role || "student"; // default role
-
+    const role = user?.role || "student";
     res.send({ role });
   } catch (err) {
     res.status(500).send({ message: "Failed to fetch role", error: err });
@@ -129,12 +157,13 @@ app.get("/users/role/:email", verifyToken, async (req, res) => {
 });
 
 
+
 // -------------------- 404 HANDLER --------------------
 app.use((req, res) => {
   res.status(404).send({ message: "404 Not Found" });
 });
 
-// -------------------- SHUTDOWN --------------------
+// -------------------- GRACEFUL SHUTDOWN --------------------
 process.on("SIGINT", async () => {
   await client.close();
   console.log("MongoDB connection closed");
