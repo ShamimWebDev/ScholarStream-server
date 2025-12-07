@@ -1,7 +1,7 @@
 // server.js
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const admin = require("firebase-admin");
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
@@ -64,7 +64,6 @@ const db = client.db("scholarStream");
 app.locals.db = db;
 
 // -------------------- AUTH MIDDLEWARE --------------------
-// Verify Firebase token
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader)
@@ -156,6 +155,51 @@ app.get("/users/role/:email", verifyToken, async (req, res) => {
   }
 });
 
+// -------------------- SCHOLARSHIP ROUTES (ADMIN ONLY) --------------------
+const scholarshipsCollection = db.collection("scholarships");
+
+// Add Scholarship
+app.post("/scholarship", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const scholarship = req.body;
+    scholarship.applicationFees = parseFloat(scholarship.applicationFees);
+    scholarship.serviceCharge = parseFloat(scholarship.serviceCharge);
+    scholarship.scholarshipPostDate = new Date();
+    const result = await scholarshipsCollection.insertOne(scholarship);
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ message: "Failed to add scholarship", error: err });
+  }
+});
+
+// Update Scholarship
+app.patch("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const item = req.body;
+    if (item.applicationFees) item.applicationFees = parseFloat(item.applicationFees);
+    if (item.serviceCharge) item.serviceCharge = parseFloat(item.serviceCharge);
+
+    const filter = { _id: new ObjectId(id) };
+    const updatedDoc = { $set: { ...item } };
+    const result = await scholarshipsCollection.updateOne(filter, updatedDoc);
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ message: "Failed to update scholarship", error: err });
+  }
+});
+
+// Delete Scholarship
+app.delete("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id) };
+    const result = await scholarshipsCollection.deleteOne(query);
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ message: "Failed to delete scholarship", error: err });
+  }
+});
 
 
 // -------------------- 404 HANDLER --------------------
