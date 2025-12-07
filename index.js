@@ -1,3 +1,4 @@
+// -------------------- IMPORTS --------------------
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
@@ -102,9 +103,7 @@ const verifyModerator = async (req, res, next) => {
   }
 };
 
-// -------------------- ROUTES --------------------
-
-// Test route
+// -------------------- TEST ROUTE --------------------
 app.get("/", (req, res) => {
   res.send("ScholarStream Server is Running");
 });
@@ -130,6 +129,7 @@ app.get("/users/role/:email", verifyToken, async (req, res) => {
     const email = req.params.email;
     if (email !== req.decoded.email)
       return res.status(403).send({ message: "forbidden access" });
+
     const user = await usersCollection.findOne({ email });
     res.send({ role: user?.role || "student" });
   } catch (err) {
@@ -138,8 +138,7 @@ app.get("/users/role/:email", verifyToken, async (req, res) => {
 });
 
 // -------------------- SCHOLARSHIP ROUTES --------------------
-
-// Add Scholarship (Admin only)
+// Add Scholarship (Admin)
 app.post("/scholarship", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const scholarship = req.body;
@@ -153,13 +152,12 @@ app.post("/scholarship", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// Update Scholarship (Admin only)
+// Update Scholarship (Admin)
 app.patch("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const id = req.params.id;
     const item = req.body;
-    if (item.applicationFees)
-      item.applicationFees = parseFloat(item.applicationFees);
+    if (item.applicationFees) item.applicationFees = parseFloat(item.applicationFees);
     if (item.serviceCharge) item.serviceCharge = parseFloat(item.serviceCharge);
     const result = await scholarshipsCollection.updateOne(
       { _id: new ObjectId(id) },
@@ -167,24 +165,18 @@ app.patch("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
     );
     res.send(result);
   } catch (err) {
-    res
-      .status(500)
-      .send({ message: "Failed to update scholarship", error: err });
+    res.status(500).send({ message: "Failed to update scholarship", error: err });
   }
 });
 
-// Delete Scholarship (Admin only)
+// Delete Scholarship (Admin)
 app.delete("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const id = req.params.id;
-    const result = await scholarshipsCollection.deleteOne({
-      _id: new ObjectId(id),
-    });
+    const result = await scholarshipsCollection.deleteOne({ _id: new ObjectId(id) });
     res.send(result);
   } catch (err) {
-    res
-      .status(500)
-      .send({ message: "Failed to delete scholarship", error: err });
+    res.status(500).send({ message: "Failed to delete scholarship", error: err });
   }
 });
 
@@ -210,38 +202,25 @@ app.get("/all-scholarships", async (req, res) => {
     if (filterCategory) query.scholarshipCategory = filterCategory;
 
     let options = {};
-    if (sortFees)
-      options.sort = { applicationFees: sortFees === "asc" ? 1 : -1 };
+    if (sortFees) options.sort = { applicationFees: sortFees === "asc" ? 1 : -1 };
     else if (sortDate === "newest") options.sort = { scholarshipPostDate: -1 };
 
-    const result = await scholarshipsCollection
-      .find(query, options)
-      .skip(skip)
-      .limit(limit)
-      .toArray();
-    const total = await scholarshipsCollection.countDocuments(query);
+    const scholarships = await scholarshipsCollection.find(query, options).skip(skip).limit(limit).toArray();
+    const totalScholarships = await scholarshipsCollection.countDocuments(query);
 
-    res.send({ scholarships: result, totalScholarships: total });
+    res.send({ scholarships, totalScholarships });
   } catch (err) {
-    res
-      .status(500)
-      .send({ message: "Failed to fetch scholarships", error: err });
+    res.status(500).send({ message: "Failed to fetch scholarships", error: err });
   }
 });
 
 // Get Top 6 Scholarships
 app.get("/top-scholarships", async (req, res) => {
   try {
-    const result = await scholarshipsCollection
-      .find()
-      .sort({ applicationFees: 1, scholarshipPostDate: -1 })
-      .limit(6)
-      .toArray();
+    const result = await scholarshipsCollection.find().sort({ applicationFees: 1, scholarshipPostDate: -1 }).limit(6).toArray();
     res.send(result);
   } catch (err) {
-    res
-      .status(500)
-      .send({ message: "Failed to fetch top scholarships", error: err });
+    res.status(500).send({ message: "Failed to fetch top scholarships", error: err });
   }
 });
 
@@ -249,14 +228,10 @@ app.get("/top-scholarships", async (req, res) => {
 app.get("/scholarship/:id", verifyToken, async (req, res) => {
   try {
     const id = req.params.id;
-    const result = await scholarshipsCollection.findOne({
-      _id: new ObjectId(id),
-    });
+    const result = await scholarshipsCollection.findOne({ _id: new ObjectId(id) });
     res.send(result);
   } catch (err) {
-    res
-      .status(500)
-      .send({ message: "Failed to fetch scholarship", error: err });
+    res.status(500).send({ message: "Failed to fetch scholarship", error: err });
   }
 });
 
@@ -275,15 +250,12 @@ app.post("/create-payment-intent", verifyToken, async (req, res) => {
 
     res.send({ clientSecret: paymentIntent.client_secret });
   } catch (err) {
-    res
-      .status(500)
-      .send({ message: "Failed to create payment intent", error: err });
+    res.status(500).send({ message: "Failed to create payment intent", error: err });
   }
 });
 
 // -------------------- APPLICATION ROUTES --------------------
-
-// Save Application
+// Save Application (Student)
 app.post("/applications", verifyToken, async (req, res) => {
   try {
     const application = req.body;
@@ -297,58 +269,46 @@ app.post("/applications", verifyToken, async (req, res) => {
   }
 });
 
-// Get Applications by User
+// Get Applications by User (Student Dashboard)
 app.get("/applications/:email", verifyToken, async (req, res) => {
   try {
     const email = req.params.email;
-    if (email !== req.decoded.email)
-      return res.status(403).send({ message: "forbidden access" });
-    const result = await applicationsCollection
-      .find({ userEmail: email })
-      .toArray();
+    if (email !== req.decoded.email) return res.status(403).send({ message: "forbidden access" });
+
+    const result = await applicationsCollection.find({ userEmail: email }).toArray();
     res.send(result);
   } catch (err) {
-    res
-      .status(500)
-      .send({ message: "Failed to fetch applications", error: err });
+    res.status(500).send({ message: "Failed to fetch applications", error: err });
   }
 });
 
-// Get All Applications (Moderator/Admin)
+// Get All Applications (Moderator/Admin Dashboard)
 app.get("/all-applications", verifyToken, verifyModerator, async (req, res) => {
   try {
     const result = await applicationsCollection.find().toArray();
     res.send(result);
   } catch (err) {
-    res
-      .status(500)
-      .send({ message: "Failed to fetch applications", error: err });
+    res.status(500).send({ message: "Failed to fetch applications", error: err });
   }
 });
 
-// Update Application Feedback/Status (Moderator)
-app.patch(
-  "/application/feedback/:id",
-  verifyToken,
-  verifyModerator,
-  async (req, res) => {
-    try {
-      const id = req.params.id;
-      const { status, feedback } = req.body;
-      const updateDoc = { $set: { applicationStatus: status } };
-      if (feedback) updateDoc.$set = { ...updateDoc.$set, feedback };
-      const result = await applicationsCollection.updateOne(
-        { _id: new ObjectId(id) },
-        updateDoc
-      );
-      res.send(result);
-    } catch (err) {
-      res
-        .status(500)
-        .send({ message: "Failed to update application", error: err });
-    }
+// Add Feedback & Update Status (Moderator)
+app.patch("/application/feedback/:id", verifyToken, verifyModerator, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { status, feedback } = req.body;
+    const updateDoc = { $set: { applicationStatus: status } };
+    if (feedback) updateDoc.$set.feedback = feedback;
+
+    const result = await applicationsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      updateDoc
+    );
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ message: "Failed to update application", error: err });
   }
-);
+});
 
 // Edit Application (Student, Pending only)
 app.patch("/application/:id", verifyToken, async (req, res) => {
@@ -380,38 +340,7 @@ app.delete("/application/:id", verifyToken, async (req, res) => {
     });
     res.send(result);
   } catch (err) {
-    res
-      .status(500)
-      .send({ message: "Failed to delete application", error: err });
-  }
-});
-
-app.post("/applications", verifyToken, async (req, res) => {
-  try {
-    const application = req.body;
-    application.applicationDate = new Date();
-    application.applicationFees = parseFloat(application.applicationFees); 
-    application.serviceCharge = parseFloat(application.serviceCharge); 
-
-    const result = await applicationsCollection.insertOne(application);
-    res.send(result);
-  } catch (err) {
-    res.status(500).send({ message: "Failed to save application", error: err });
-  }
-});
-
-// Get Applications by User (Student Dashboard)
-app.get("/applications/:email", verifyToken, async (req, res) => {
-  try {
-    const email = req.params.email;
-    if (email !== req.decoded.email) 
-      return res.status(403).send({ message: "forbidden access" });
-
-    const query = { userEmail: email };
-    const result = await applicationsCollection.find(query).toArray();
-    res.send(result);
-  } catch (err) {
-    res.status(500).send({ message: "Failed to fetch applications", error: err });
+    res.status(500).send({ message: "Failed to delete application", error: err });
   }
 });
 
