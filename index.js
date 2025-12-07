@@ -157,7 +157,8 @@ app.patch("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const id = req.params.id;
     const item = req.body;
-    if (item.applicationFees) item.applicationFees = parseFloat(item.applicationFees);
+    if (item.applicationFees)
+      item.applicationFees = parseFloat(item.applicationFees);
     if (item.serviceCharge) item.serviceCharge = parseFloat(item.serviceCharge);
     const result = await scholarshipsCollection.updateOne(
       { _id: new ObjectId(id) },
@@ -165,7 +166,9 @@ app.patch("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
     );
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to update scholarship", error: err });
+    res
+      .status(500)
+      .send({ message: "Failed to update scholarship", error: err });
   }
 });
 
@@ -173,10 +176,14 @@ app.patch("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
 app.delete("/scholarship/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const id = req.params.id;
-    const result = await scholarshipsCollection.deleteOne({ _id: new ObjectId(id) });
+    const result = await scholarshipsCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to delete scholarship", error: err });
+    res
+      .status(500)
+      .send({ message: "Failed to delete scholarship", error: err });
   }
 });
 
@@ -202,25 +209,40 @@ app.get("/all-scholarships", async (req, res) => {
     if (filterCategory) query.scholarshipCategory = filterCategory;
 
     let options = {};
-    if (sortFees) options.sort = { applicationFees: sortFees === "asc" ? 1 : -1 };
+    if (sortFees)
+      options.sort = { applicationFees: sortFees === "asc" ? 1 : -1 };
     else if (sortDate === "newest") options.sort = { scholarshipPostDate: -1 };
 
-    const scholarships = await scholarshipsCollection.find(query, options).skip(skip).limit(limit).toArray();
-    const totalScholarships = await scholarshipsCollection.countDocuments(query);
+    const scholarships = await scholarshipsCollection
+      .find(query, options)
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+    const totalScholarships = await scholarshipsCollection.countDocuments(
+      query
+    );
 
     res.send({ scholarships, totalScholarships });
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch scholarships", error: err });
+    res
+      .status(500)
+      .send({ message: "Failed to fetch scholarships", error: err });
   }
 });
 
 // Get Top 6 Scholarships
 app.get("/top-scholarships", async (req, res) => {
   try {
-    const result = await scholarshipsCollection.find().sort({ applicationFees: 1, scholarshipPostDate: -1 }).limit(6).toArray();
+    const result = await scholarshipsCollection
+      .find()
+      .sort({ applicationFees: 1, scholarshipPostDate: -1 })
+      .limit(6)
+      .toArray();
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch top scholarships", error: err });
+    res
+      .status(500)
+      .send({ message: "Failed to fetch top scholarships", error: err });
   }
 });
 
@@ -228,10 +250,14 @@ app.get("/top-scholarships", async (req, res) => {
 app.get("/scholarship/:id", verifyToken, async (req, res) => {
   try {
     const id = req.params.id;
-    const result = await scholarshipsCollection.findOne({ _id: new ObjectId(id) });
+    const result = await scholarshipsCollection.findOne({
+      _id: new ObjectId(id),
+    });
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch scholarship", error: err });
+    res
+      .status(500)
+      .send({ message: "Failed to fetch scholarship", error: err });
   }
 });
 
@@ -250,7 +276,9 @@ app.post("/create-payment-intent", verifyToken, async (req, res) => {
 
     res.send({ clientSecret: paymentIntent.client_secret });
   } catch (err) {
-    res.status(500).send({ message: "Failed to create payment intent", error: err });
+    res
+      .status(500)
+      .send({ message: "Failed to create payment intent", error: err });
   }
 });
 
@@ -273,12 +301,17 @@ app.post("/applications", verifyToken, async (req, res) => {
 app.get("/applications/:email", verifyToken, async (req, res) => {
   try {
     const email = req.params.email;
-    if (email !== req.decoded.email) return res.status(403).send({ message: "forbidden access" });
+    if (email !== req.decoded.email)
+      return res.status(403).send({ message: "forbidden access" });
 
-    const result = await applicationsCollection.find({ userEmail: email }).toArray();
+    const result = await applicationsCollection
+      .find({ userEmail: email })
+      .toArray();
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch applications", error: err });
+    res
+      .status(500)
+      .send({ message: "Failed to fetch applications", error: err });
   }
 });
 
@@ -288,27 +321,36 @@ app.get("/all-applications", verifyToken, verifyModerator, async (req, res) => {
     const result = await applicationsCollection.find().toArray();
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to fetch applications", error: err });
+    res
+      .status(500)
+      .send({ message: "Failed to fetch applications", error: err });
   }
 });
 
 // Add Feedback & Update Status (Moderator)
-app.patch("/application/feedback/:id", verifyToken, verifyModerator, async (req, res) => {
-  try {
-    const id = req.params.id;
-    const { status, feedback } = req.body;
-    const updateDoc = { $set: { applicationStatus: status } };
-    if (feedback) updateDoc.$set.feedback = feedback;
+app.patch(
+  "/application/feedback/:id",
+  verifyToken,
+  verifyModerator,
+  async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { status, feedback } = req.body;
+      const updateDoc = { $set: { applicationStatus: status } };
+      if (feedback) updateDoc.$set.feedback = feedback;
 
-    const result = await applicationsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      updateDoc
-    );
-    res.send(result);
-  } catch (err) {
-    res.status(500).send({ message: "Failed to update application", error: err });
+      const result = await applicationsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        updateDoc
+      );
+      res.send(result);
+    } catch (err) {
+      res
+        .status(500)
+        .send({ message: "Failed to update application", error: err });
+    }
   }
-});
+);
 
 // Edit Application (Student, Pending only)
 app.patch("/application/:id", verifyToken, async (req, res) => {
@@ -340,9 +382,67 @@ app.delete("/application/:id", verifyToken, async (req, res) => {
     });
     res.send(result);
   } catch (err) {
-    res.status(500).send({ message: "Failed to delete application", error: err });
+    res
+      .status(500)
+      .send({ message: "Failed to delete application", error: err });
   }
 });
+
+// --- REVIEWS ROUTES ---
+
+// Add Review
+app.post("/reviews", verifyToken, async (req, res) => {
+  const review = req.body;
+  review.reviewDate = new Date();
+  review.ratingPoint = parseInt(review.ratingPoint);
+  const result = await reviewsCollection.insertOne(review);
+  res.send(result);
+});
+
+// Edit Review (Student)
+app.patch("/reviews/:id", verifyToken, async (req, res) => {
+  const id = req.params.id;
+  const { ratingPoint, reviewComment } = req.body;
+  const filter = { _id: new ObjectId(id), userEmail: req.decoded.email };
+  const updatedDoc = {
+    $set: {
+      ratingPoint: parseInt(ratingPoint),
+      reviewComment: reviewComment,
+      reviewDate: new Date(),
+    },
+  };
+  const result = await reviewsCollection.updateOne(filter, updatedDoc);
+  res.send(result);
+});
+
+// Get Reviews by Scholarship ID (Details Page)
+app.get("/reviews/:scholarshipId", async (req, res) => {
+  const id = req.params.scholarshipId;
+  const query = { scholarshipId: id };
+  const result = await reviewsCollection.find(query).toArray();
+  res.send(result);
+});
+
+// Get My Reviews (Student Dashboard)
+app.get("/reviews-by-user/:email", verifyToken, async (req, res) => {
+  const email = req.params.email;
+  if (email !== req.decoded.email)
+    return res.status(403).send({ message: "forbidden access" });
+  const query = { userEmail: email };
+  const result = await reviewsCollection.find(query).toArray();
+  res.send(result);
+});
+
+// Delete Review (Mod or Student)
+app.delete("/reviews/:id", verifyToken, async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) };
+  const result = await reviewsCollection.deleteOne(query);
+  res.send(result);
+});
+
+
+
 
 // -------------------- 404 HANDLER --------------------
 app.use((req, res) => {
