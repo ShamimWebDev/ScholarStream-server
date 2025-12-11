@@ -80,10 +80,67 @@ const deleteUser = async (req, res) => {
   }
 };
 
+const addToWishlist = async (req, res) => {
+  try {
+    const { email, scholarshipId } = req.body;
+    if (email !== req.decoded.email)
+      return res.status(403).send({ message: "forbidden access" });
+
+    const result = await User.updateOne(
+      { email: { $regex: new RegExp(`^${email}$`, "i") } },
+      { $addToSet: { wishlist: scholarshipId } }
+    );
+    res.send(result);
+  } catch (err) {
+    res.status(500).send({ message: "Failed to add to wishlist", error: err });
+  }
+};
+
+const removeFromWishlist = async (req, res) => {
+  try {
+    const { email, scholarshipId } = req.body;
+    if (email !== req.decoded.email)
+      return res.status(403).send({ message: "forbidden access" });
+
+    const result = await User.updateOne(
+      { email: { $regex: new RegExp(`^${email}$`, "i") } },
+      { $pull: { wishlist: scholarshipId } }
+    );
+    res.send(result);
+  } catch (err) {
+    res
+      .status(500)
+      .send({ message: "Failed to remove from wishlist", error: err });
+  }
+};
+
+const getWishlist = async (req, res) => {
+  try {
+    const email = req.params.email;
+    if (email !== req.decoded.email)
+      return res.status(403).send({ message: "forbidden access" });
+
+    const user = await User.findOne({
+      email: { $regex: new RegExp(`^${email}$`, "i") },
+    }).populate("wishlist");
+
+    if (!user) return res.status(404).send({ message: "User not found" });
+
+    const validWishlist = user.wishlist.filter((item) => item !== null);
+
+    res.send(validWishlist);
+  } catch (err) {
+    res.status(500).send({ message: "Failed to fetch wishlist", error: err });
+  }
+};
+
 module.exports = {
   addUser,
   getAllUsers,
   getUserByEmail,
   updateUserRole,
   deleteUser,
+  addToWishlist,
+  removeFromWishlist,
+  getWishlist,
 };

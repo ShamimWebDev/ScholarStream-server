@@ -13,5 +13,8 @@ router.patch(
   userController.updateUserRole
 );
 router.delete("/:id", verifyToken, verifyAdmin, userController.deleteUser);
+router.put("/wishlist/add", verifyToken, userController.addToWishlist);
+router.put("/wishlist/remove", verifyToken, userController.removeFromWishlist);
+router.get("/wishlist/:email", verifyToken, userController.getWishlist);
 
 module.exports = router;

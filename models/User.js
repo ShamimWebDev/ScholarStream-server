@@ -10,6 +10,12 @@ const userSchema = new mongoose.Schema(
       enum: ["student", "moderator", "admin", "Student", "Moderator", "Admin"],
       default: "student",
     },
+    wishlist: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Scholarship",
+      },
+    ],
   },
   { timestamps: true }
 );
