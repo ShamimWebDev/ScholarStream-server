@@ -2,3 +2,5 @@ node_modules
 .env
 serviceAccountKey.json
 .vercel
+seed.js
+seedUser.js

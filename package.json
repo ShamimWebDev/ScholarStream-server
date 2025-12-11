@@ -1,5 +1,5 @@
 {
-  "name": "b12-m11-backend",
+  "name": "backend",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -18,7 +18,9 @@
     "firebase-admin": "^13.6.0",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.0.0",
-    "stripe": "^20.0.0"
+    "mongoose": "^9.0.1",
+    "stripe": "^20.0.0",
+    "zod": "^4.1.13"
   },
   "description": ""
 }
